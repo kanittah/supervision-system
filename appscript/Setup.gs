@@ -39,15 +39,16 @@ function seedIfEmpty_(ss) {
   const users = ss.getSheetByName("Users");
   if (users.getLastRow() > 1) return; // มีข้อมูลแล้ว ไม่ seed ซ้ำ
 
-  // ⚠ เปลี่ยนอีเมลตัวอย่างเป็นอีเมลจริงของคุณอย่างน้อย 1 บัญชี ADMIN เพื่อเข้าใช้ได้
   const now = new Date();
   const dom = "@fte.kmutnb.ac.th";
-  users.getRange(2, 1, 5, 6).setValues([
-    ["admin" + dom, "ผู้ดูแลระบบ", "ADMIN", "TE", true, now],
+  users.getRange(2, 1, 7, 6).setValues([
+    ["kittinan.p@fte.kmutnb.ac.th", "Kittinan (แอดมิน)", "ADMIN", "TE", true, now],
+    ["panya.sys@fte.kmutnb.ac.th", "บัญชีระบบ (แอดมิน)", "ADMIN", "TE", true, now],
     ["staff" + dom, "เจ้าหน้าที่ภาควิชา", "STAFF", "TE", true, now],
     ["supervisor" + dom, "อ.สมชาย นิเทศ", "SUPERVISOR", "TE", true, now],
     ["student1" + dom, "นายเอกชัย ไฟฟ้า", "STUDENT", "TE", true, now],
     ["student2" + dom, "นางสาวมานี วงจร", "STUDENT", "TE", true, now],
+    ["student3" + dom, "นายปิติ กระแส", "STUDENT", "TE", true, now],
   ]);
 
   const term = "ฝึกสอน 1/2568";
