@@ -396,7 +396,7 @@ function call(fn){
 function chk(r){ if(!r.ok){ return r.text().then(function(t){ throw new Error("Google API "+r.status+": "+t.slice(0,180)); }); } return r.json(); }
 function colLetter(i){ var s=""; i++; while(i>0){ var m=(i-1)%26; s=String.fromCharCode(65+m)+s; i=Math.floor((i-1)/26);} return s; }
 function uuid(){ return (window.crypto&&crypto.randomUUID)?crypto.randomUUID():("id"+Date.now()+Math.floor(Math.random()*1e6)); }
-function nowIso(){ return new Date().toISOString().slice(0,16).replace("T"," "); }
+function nowIso(){ var d=new Date(), p=function(n){return String(n).padStart(2,"0");}; return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+" "+p(d.getHours())+":"+p(d.getMinutes()); } // เวลาท้องถิ่น (ไทย)
 function canTransitionC(cur,ev,r){ var c=TRANSITIONS[ev]; if(!c) return null; var m=c.filter(function(t){return t.from===cur;})[0]; if(!m||m.roles.indexOf(r)<0) return null; return m.to; }
 function toClientE(r,audits){
   var done=[]; try{ done=JSON.parse(r.activitiesDone||"[]"); }catch(e){ done=[]; }
@@ -473,7 +473,8 @@ var SHEETS = {
       return self._update("Enrollments!"+sCol+e._row, to)
         .then(function(){ return self._update("Enrollments!"+uCol+e._row, nowIso()); })
         .then(function(){ return self._append("AuditLog",[uuid(),id,ME_EMAIL,role,"STATUS_CHANGE:"+event,e.status,to,note||"",nowIso()]); })
-        .then(function(){ return self.getBootstrap(); });
+        .then(function(){ return self.getBootstrap(); })
+        .then(function(b){ return b.enrollments; }); // ให้รูปแบบเดียวกับ mock/Apps Script (คืนรายการนักศึกษา)
     });
   }
 };
