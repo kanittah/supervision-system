@@ -419,14 +419,15 @@ function initAuth(onReady){
         .then(function(r){return r.json();})
         .then(function(j){
           ME_EMAIL=(j.email||"").toLowerCase();
-          if(CONFIG.DOMAIN && ME_EMAIL.indexOf("@"+CONFIG.DOMAIN)<0){ loginErr("อนุญาตเฉพาะบัญชี @"+CONFIG.DOMAIN); ACCESS_TOKEN=null; return; }
+          var d=CONFIG.DOMAIN;
+          if(d && !(ME_EMAIL.endsWith("@"+d) || ME_EMAIL.endsWith("."+d))){ show("screen-login"); loginErr("อนุญาตเฉพาะบัญชีของมหาวิทยาลัย (…"+d+")"); ACCESS_TOKEN=null; return; }
           onReady();
         }).catch(function(e){ loginErr("ดึงข้อมูลบัญชีไม่สำเร็จ"); });
     }
   });
 }
 function signIn(){ if(!tokenClient){ loginErr("ระบบล็อกอินยังโหลดไม่เสร็จ ลองใหม่อีกครั้ง"); return; } tokenClient.requestAccessToken({prompt: ACCESS_TOKEN?"":"consent"}); }
-function loginErr(m){ var e=document.getElementById("login-err"); e.textContent=m; e.classList.remove("hidden"); }
+function loginErr(m){ show("screen-login"); var e=document.getElementById("login-err"); e.textContent=m; e.classList.remove("hidden"); }
 
 // ── Sheets backend ──
 var SHEETS = {
@@ -521,11 +522,20 @@ function loadApp(){
     BOOT=b;
     if(!b.user){ renderRegister(b.email); show("screen-register"); return; }
     role=b.user.role; show("screen-app"); renderApp();
-  }).catch(function(e){ alert("โหลดข้อมูลไม่สำเร็จ: "+(e&&e.message?e.message:e)); });
+  }).catch(function(e){
+    var msg=(e&&e.message?e.message:""+e);
+    if(/ 40[34]/.test(msg)) loginErr("บัญชี "+ME_EMAIL+" ยังไม่มีสิทธิ์เข้าถึงฐานข้อมูล — กรุณาติดต่อเจ้าหน้าที่ภาควิชา");
+    else loginErr("โหลดข้อมูลไม่สำเร็จ: "+msg);
+  });
 }
 function boot(){ show("screen-landing"); }
 // กด "เข้าสู่ระบบ" จากหน้าแรก
-function enter(){ if(MODE==="sheets"){ show("screen-login"); } else { loadApp(); } }
+function enter(){
+  if(MODE!=="sheets"){ loadApp(); return; }
+  // เปิดหน้าต่างล็อกอิน Google ทันที (ต้องเรียกในจังหวะคลิกของผู้ใช้)
+  if(window.google&&google.accounts&&google.accounts.oauth2){ if(!tokenClient) initAuth(loadApp); signIn(); }
+  else { show("screen-login"); }
+}
 // ปุ่มเข้าสู่ระบบ (sheets mode)
 document.getElementById("login-btn").addEventListener("click",function(){
   if(!window.google||!google.accounts||!google.accounts.oauth2){ loginErr("ระบบล็อกอินยังโหลดไม่เสร็จ ลองใหม่อีกครั้ง"); return; }
