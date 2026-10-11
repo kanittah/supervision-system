@@ -1,0 +1,70 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Design tokens: ส้มนีออน (สว่าง=ส้ม+ขาว / มืด=ส้ม+ดำ) ── */
+:root {
+  --font-sans: "Sarabun", "Noto Sans Thai", system-ui, -apple-system, sans-serif;
+
+  --bg: #f7f4f1;
+  --surface: #ffffff;
+  --surface-2: #f3efeb;
+  --border: #e7e0d9;
+  --ink: #1b140d;
+  --ink-soft: #6d6055;
+  --ink-faint: #9b8f83;
+  --accent: #ff6a1a; /* ส้มนีออน — fill/active */
+  --accent-ink: #d94e00; /* ส้มเข้ม — ข้อความบนพื้นขาว */
+  --accent-soft: rgba(255, 106, 26, 0.12);
+  --glow: 0 0 0 rgba(0, 0, 0, 0);
+  --shadow: 0 1px 2px rgba(60, 30, 10, 0.06), 0 8px 22px rgba(60, 30, 10, 0.07);
+
+  --s-collecting: #8a8178;
+  --s-submitted: #3f74d6;
+  --s-verifying: #d08700;
+  --s-approving: #c26a12;
+  --s-ready: #6d7cf0;
+  --s-teaching: #9b6ef5;
+  --s-evaluating: #ef7d2a;
+  --s-completed: #1f9d57;
+  --s-kurusapa: #0f9d8f;
+  --s-returned: #e0483d;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d0b0a;
+    --surface: #17130f;
+    --surface-2: #201a14;
+    --border: #2d241c;
+    --ink: #f4ece4;
+    --ink-soft: #a99e92;
+    --ink-faint: #786e62;
+    --accent: #ff7a2e;
+    --accent-ink: #ff9552;
+    --accent-soft: rgba(255, 122, 46, 0.15);
+    --glow: 0 0 22px rgba(255, 122, 46, 0.45);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 26px rgba(0, 0, 0, 0.35);
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #0d0b0a; --surface: #17130f; --surface-2: #201a14; --border: #2d241c;
+  --ink: #f4ece4; --ink-soft: #a99e92; --ink-faint: #786e62;
+  --accent: #ff7a2e; --accent-ink: #ff9552; --accent-soft: rgba(255, 122, 46, 0.15);
+  --glow: 0 0 22px rgba(255, 122, 46, 0.45);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 26px rgba(0, 0, 0, 0.35);
+}
+:root[data-theme="light"] {
+  --bg: #f7f4f1; --surface: #ffffff; --surface-2: #f3efeb; --border: #e7e0d9;
+  --ink: #1b140d; --ink-soft: #6d6055; --ink-faint: #9b8f83;
+  --accent: #ff6a1a; --accent-ink: #d94e00; --accent-soft: rgba(255, 106, 26, 0.12);
+  --glow: 0 0 0 rgba(0, 0, 0, 0);
+  --shadow: 0 1px 2px rgba(60, 30, 10, 0.06), 0 8px 22px rgba(60, 30, 10, 0.07);
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+}

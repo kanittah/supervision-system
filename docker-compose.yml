@@ -1,0 +1,16 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: supervision-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: supervision
+      POSTGRES_PASSWORD: supervision
+      POSTGRES_DB: supervision
+    ports:
+      - "5432:5432"
+    volumes:
+      - supervision-pgdata:/var/lib/postgresql/data
+
+volumes:
+  supervision-pgdata:

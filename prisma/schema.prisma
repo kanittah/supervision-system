@@ -1,0 +1,394 @@
+// ระบบนิเทศนักศึกษาฝึกสอน — Prisma schema
+// อ้างอิงจาก docs/ARCHITECTURE.md (โมดูล M1–M7)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Enums
+// ─────────────────────────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  STAFF // เจ้าหน้าที่
+  SUPERVISOR // อาจารย์นิเทศ
+  STUDENT // นักศึกษา
+  MENTOR // ครูพี่เลี้ยง
+}
+
+// สถานะการฝึกของนักศึกษาในหนึ่งรอบ (หัวใจของ state machine)
+enum EnrollmentStatus {
+  COLLECTING // ก่อนฝึก: กำลังเก็บกิจกรรม
+  SUBMITTED // ส่งรวมเล่มเอกสารแล้ว
+  STAFF_VERIFYING // เจ้าหน้าที่กำลังตรวจ
+  ADVISOR_APPROVING // อาจารย์กำลังอนุมัติ
+  READY_TO_TEACH // ผ่านครบ พร้อมออกไปสอน
+  TEACHING // กำลังฝึกสอน + รับนิเทศ
+  EVALUATING // อยู่ระหว่างประเมินผล
+  COMPLETED // ผ่านการฝึกครบถ้วน
+  SUBMITTED_TO_KURUSAPA // ส่งคุรุสภาแล้ว
+  RETURNED // ถูกตีกลับให้แก้ไข
+  FAILED // ไม่ผ่าน
+  EXTENDED // ต้องฝึกเพิ่ม
+}
+
+enum VerificationRole {
+  STAFF
+  SUPERVISOR
+}
+
+enum VerificationStatus {
+  PENDING
+  APPROVED
+  RETURNED
+}
+
+enum WorkItemType {
+  LESSON_PLAN // แผนการสอน
+  REFLECTION // บันทึกหลังสอน
+  ASSIGNMENT // ชิ้นงานอื่น ๆ
+}
+
+enum WorkItemStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REVISE // ให้แก้ไข
+}
+
+enum FormKind {
+  ACTIVITY_CHECKLIST // เกณฑ์กิจกรรมก่อนฝึก
+  EVALUATION // แบบประเมิน
+}
+
+// ─────────────────────────────────────────────────────────────
+// M1. ผู้ใช้ / ภาควิชา / รอบฝึก
+// ─────────────────────────────────────────────────────────────
+
+model Department {
+  id        String   @id @default(cuid())
+  code      String   @unique // เช่น "TE" (ครุศาสตร์ไฟฟ้า)
+  nameTh    String
+  nameEn    String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  users         User[]
+  terms         AcademicTerm[]
+  enrollments   Enrollment[]
+  schools       School[]
+  formTemplates FormTemplate[]
+  activities    ActivityTemplate[]
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  role         Role
+  departmentId String?
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  department Department? @relation(fields: [departmentId], references: [id])
+
+  // relations ตามบทบาท
+  studentEnrollments    Enrollment[]       @relation("StudentEnrollment")
+  supervisedEnrollments Enrollment[]       @relation("SupervisorEnrollment")
+  mentoredEnrollments   Enrollment[]       @relation("MentorEnrollment")
+  verifications         VerificationStep[]
+  visits                SupervisionVisit[]
+  comments              Comment[]
+  evaluations           Evaluation[]
+  auditLogs             AuditLog[]
+
+  @@index([role])
+  @@index([departmentId])
+}
+
+model AcademicTerm {
+  id           String    @id @default(cuid())
+  departmentId String
+  year         Int // พ.ศ. เช่น 2568
+  semester     Int // 1 หรือ 2
+  name         String // เช่น "ฝึกสอน 1/2568"
+  startDate    DateTime?
+  endDate      DateTime?
+  active       Boolean   @default(true)
+
+  department  Department   @relation(fields: [departmentId], references: [id])
+  enrollments Enrollment[]
+
+  @@unique([departmentId, year, semester])
+}
+
+model School {
+  id           String   @id @default(cuid())
+  departmentId String?
+  name         String
+  address      String?
+  contactName  String?
+  contactPhone String?
+  createdAt    DateTime @default(now())
+
+  department  Department?  @relation(fields: [departmentId], references: [id])
+  enrollments Enrollment[]
+}
+
+// ─────────────────────────────────────────────────────────────
+// หัวใจระบบ: Enrollment (นักศึกษา 1 คน ต่อ 1 รอบฝึก)
+// ─────────────────────────────────────────────────────────────
+
+model Enrollment {
+  id           String           @id @default(cuid())
+  studentId    String
+  termId       String
+  departmentId String
+  status       EnrollmentStatus @default(COLLECTING)
+
+  // การจับคู่ (M3)
+  supervisorId String?
+  mentorId     String?
+  schoolId     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  student    User        @relation("StudentEnrollment", fields: [studentId], references: [id])
+  term       AcademicTerm @relation(fields: [termId], references: [id])
+  department Department  @relation(fields: [departmentId], references: [id])
+  supervisor User?       @relation("SupervisorEnrollment", fields: [supervisorId], references: [id])
+  mentor     User?       @relation("MentorEnrollment", fields: [mentorId], references: [id])
+  school     School?     @relation(fields: [schoolId], references: [id])
+
+  activities    ActivityRecord[]
+  bundles       DocumentBundle[]
+  workItems     WorkItem[]
+  visits        SupervisionVisit[]
+  evaluations   Evaluation[]
+  auditLogs     AuditLog[]
+
+  @@unique([studentId, termId])
+  @@index([status])
+  @@index([departmentId])
+  @@index([supervisorId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// M2. ก่อนฝึก — เก็บกิจกรรม & ตรวจเอกสาร
+// ─────────────────────────────────────────────────────────────
+
+// เทมเพลตกิจกรรมที่ต้องทำก่อนฝึก (ตั้งค่าต่อภาควิชา = ขยายภาคได้)
+model ActivityTemplate {
+  id           String  @id @default(cuid())
+  departmentId String
+  title        String
+  description  String?
+  required     Boolean @default(true)
+  order        Int     @default(0)
+  active       Boolean @default(true)
+
+  department Department       @relation(fields: [departmentId], references: [id])
+  records    ActivityRecord[]
+}
+
+model ActivityRecord {
+  id           String   @id @default(cuid())
+  enrollmentId String
+  templateId   String?
+  title        String
+  note         String?
+  completed    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  enrollment  Enrollment        @relation(fields: [enrollmentId], references: [id])
+  template    ActivityTemplate? @relation(fields: [templateId], references: [id])
+  attachments Attachment[]
+
+  @@index([enrollmentId])
+}
+
+// ชุดเอกสารที่รวมเพื่อส่งตรวจ (verify 2 ชั้น)
+model DocumentBundle {
+  id           String             @id @default(cuid())
+  enrollmentId String
+  status       VerificationStatus @default(PENDING)
+  submittedAt  DateTime           @default(now())
+
+  enrollment Enrollment         @relation(fields: [enrollmentId], references: [id])
+  steps      VerificationStep[]
+  attachments Attachment[]
+
+  @@index([enrollmentId])
+}
+
+model VerificationStep {
+  id         String             @id @default(cuid())
+  bundleId   String
+  role       VerificationRole // STAFF ตรวจก่อน แล้ว SUPERVISOR
+  reviewerId String?
+  status     VerificationStatus @default(PENDING)
+  comment    String?
+  decidedAt  DateTime?
+
+  bundle   DocumentBundle @relation(fields: [bundleId], references: [id])
+  reviewer User?          @relation(fields: [reviewerId], references: [id])
+
+  @@index([bundleId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// M4. ระหว่างฝึก — แผนการสอน & บันทึกการนิเทศ
+// ─────────────────────────────────────────────────────────────
+
+model WorkItem {
+  id           String         @id @default(cuid())
+  enrollmentId String
+  type         WorkItemType
+  title        String
+  weekNo       Int?
+  status       WorkItemStatus @default(DRAFT)
+  createdAt    DateTime       @default(now())
+
+  enrollment  Enrollment   @relation(fields: [enrollmentId], references: [id])
+  comments    Comment[]
+  attachments Attachment[]
+
+  @@index([enrollmentId])
+}
+
+model Comment {
+  id         String   @id @default(cuid())
+  workItemId String
+  authorId   String
+  body       String
+  createdAt  DateTime @default(now())
+
+  workItem WorkItem @relation(fields: [workItemId], references: [id])
+  author   User     @relation(fields: [authorId], references: [id])
+
+  @@index([workItemId])
+}
+
+model SupervisionVisit {
+  id           String   @id @default(cuid())
+  enrollmentId String
+  supervisorId String
+  visitNo      Int
+  visitDate    DateTime
+  location     String?
+  notes        String?
+  createdAt    DateTime @default(now())
+
+  enrollment  Enrollment   @relation(fields: [enrollmentId], references: [id])
+  supervisor  User         @relation(fields: [supervisorId], references: [id])
+  attachments Attachment[]
+
+  @@index([enrollmentId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// M5. ประเมินผล (form builder + คะแนน)
+// ─────────────────────────────────────────────────────────────
+
+model FormTemplate {
+  id           String   @id @default(cuid())
+  departmentId String
+  kind         FormKind
+  name         String
+  active       Boolean  @default(true)
+
+  department  Department   @relation(fields: [departmentId], references: [id])
+  fields      FormField[]
+  evaluations Evaluation[]
+}
+
+model FormField {
+  id         String  @id @default(cuid())
+  templateId String
+  label      String
+  order      Int     @default(0)
+  maxScore   Float   @default(0) // ใช้กับแบบประเมิน
+  weight     Float   @default(1)
+
+  template FormTemplate      @relation(fields: [templateId], references: [id])
+  scores   EvaluationScore[]
+
+  @@index([templateId])
+}
+
+model Evaluation {
+  id             String   @id @default(cuid())
+  enrollmentId   String
+  formTemplateId String
+  evaluatorId    String
+  evaluatorRole  Role
+  totalScore     Float?
+  passed         Boolean?
+  submittedAt    DateTime @default(now())
+
+  enrollment Enrollment        @relation(fields: [enrollmentId], references: [id])
+  template   FormTemplate      @relation(fields: [formTemplateId], references: [id])
+  evaluator  User              @relation(fields: [evaluatorId], references: [id])
+  scores     EvaluationScore[]
+
+  @@index([enrollmentId])
+}
+
+model EvaluationScore {
+  id           String @id @default(cuid())
+  evaluationId String
+  fieldId      String
+  score        Float
+  note         String?
+
+  evaluation Evaluation @relation(fields: [evaluationId], references: [id])
+  field      FormField  @relation(fields: [fieldId], references: [id])
+
+  @@index([evaluationId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// ไฟล์แนบ (polymorphic) + Audit log
+// ─────────────────────────────────────────────────────────────
+
+model Attachment {
+  id         String   @id @default(cuid())
+  fileName   String
+  url        String
+  mimeType   String?
+  size       Int?
+  createdAt  DateTime @default(now())
+
+  activityRecordId String?
+  bundleId         String?
+  workItemId       String?
+  visitId          String?
+
+  activityRecord ActivityRecord?   @relation(fields: [activityRecordId], references: [id])
+  bundle         DocumentBundle?   @relation(fields: [bundleId], references: [id])
+  workItem       WorkItem?         @relation(fields: [workItemId], references: [id])
+  visit          SupervisionVisit? @relation(fields: [visitId], references: [id])
+}
+
+model AuditLog {
+  id           String   @id @default(cuid())
+  enrollmentId String?
+  actorId      String
+  action       String // เช่น "STATUS_CHANGE", "VERIFY", "EVALUATE"
+  fromStatus   String?
+  toStatus     String?
+  note         String?
+  createdAt    DateTime @default(now())
+
+  enrollment Enrollment? @relation(fields: [enrollmentId], references: [id])
+  actor      User        @relation(fields: [actorId], references: [id])
+
+  @@index([enrollmentId])
+}
