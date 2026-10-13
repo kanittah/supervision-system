@@ -1,63 +1,38 @@
 # ระบบนิเทศนักศึกษาฝึกสอน
 
-คณะครุศาสตร์อุตสาหกรรม — ภาควิชาครุศาสตร์ไฟฟ้า (ออกแบบเผื่อขยายภาคอื่น)
+คณะครุศาสตร์อุตสาหกรรม มจพ. — ภาควิชาครุศาสตร์ไฟฟ้า
 
-> โครงสร้าง/สถาปัตยกรรมเต็มดูที่ [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+## 🌐 ใช้งาน
+- **เว็บระบบ:** https://kanittah.github.io/supervision-system/
+- **ทดลองทุกบทบาท (ข้อมูลตัวอย่าง ไม่บันทึกจริง):** https://kanittah.github.io/supervision-system/?demo=1
 
-## 🚀 เวอร์ชันที่ใช้งานจริง: Google Apps Script
-ระบบจริงที่เลือกใช้อยู่ในโฟลเดอร์ **[`appscript/`](appscript/)** — รันบน Google Apps Script,
-ใช้ Google Sheets เป็นฐานข้อมูล, ล็อกอินด้วยบัญชี `@…kmutnb.ac.th`
-วิธีติดตั้งดูที่ [appscript/README-DEPLOY.md](appscript/README-DEPLOY.md)
+ล็อกอินด้วยบัญชี Google ของมหาวิทยาลัย (@…kmutnb.ac.th) ครั้งแรกระบบจะให้ลงทะเบียน
+- **นักศึกษา** ใช้งานได้ทันที ระบบสร้างข้อมูลการฝึกให้อัตโนมัติ
+- **อาจารย์ / เจ้าหน้าที่** ต้องรอผู้ดูแลระบบอนุมัติสิทธิ์ในเมนู "จัดการผู้ใช้"
 
-> โฟลเดอร์ `src/`, `prisma/` ด้านล่างเป็นเวอร์ชันทางเลือก (Next.js + Postgres) เก็บไว้เผื่อขยายสเกลใหญ่ในอนาคต
-
----
-
-
-## Tech Stack
-Next.js 15 (App Router) · TypeScript · Tailwind CSS · Prisma · PostgreSQL
-
-## เริ่มต้นใช้งาน
-
-```bash
-# 1. ติดตั้ง dependencies
-npm install
-
-# 2. ตั้งค่า env
-cp .env.example .env
-
-# 3. เปิดฐานข้อมูล PostgreSQL (ต้องมี Docker)
-npm run db:up
-
-# 4. สร้างตารางจาก schema
-npm run db:push
-
-# 5. ใส่ข้อมูลตัวอย่าง (ภาคไฟฟ้า + ผู้ใช้ + นักศึกษา)
-npm run db:seed
-
-# 6. รัน dev server
-npm run dev      # http://localhost:3000
+## 🏗️ สถาปัตยกรรม
 ```
-
-> ยังไม่มี Docker? ติดตั้ง Docker Desktop หรือชี้ `DATABASE_URL` ไปยัง PostgreSQL ที่มีอยู่แล้ว
-
-## โครงสร้างโค้ด
-
+เบราว์เซอร์ ──(GitHub Pages: web/index.html)
+     │  ล็อกอิน Google (Google Identity Services)
+     └─► Google Sheets API ──► ชีต "ฐานข้อมูลระบบนิเทศนักศึกษาฝึกสอน" (Drive ของ panya.sys)
+                               แท็บ Users / Enrollments / AuditLog
 ```
-prisma/schema.prisma          โมเดลข้อมูลทั้งหมด (M1–M7)
-prisma/seed.ts                ข้อมูลตั้งต้น
-src/lib/workflow/             state machine ของการฝึกสอน (หัวใจระบบ)
-src/lib/rbac/                 สิทธิ์ตามบทบาท (RBAC)
-src/lib/db.ts                 Prisma client
-src/modules/enrollment/       บริการเปลี่ยนสถานะ + audit log
-src/app/                      หน้าเว็บ (แดชบอร์ด)
-```
+- หน้าเว็บเป็นไฟล์ static ไฟล์เดียว ไม่มีเซิร์ฟเวอร์ของเราเอง
+- ผู้ใช้แต่ละคนอ่าน/เขียนชีตด้วยสิทธิ์ของบัญชีตัวเอง (ชีตต้องแชร์ให้ kmutnb.ac.th เป็น **ผู้แก้ไข**)
+- ค่าเชื่อมต่ออยู่ใน [`web/config.js`](web/config.js) (Client ID / Spreadsheet ID ไม่ใช่ความลับ)
+- push ไฟล์ใน `web/` ขึ้น `main` แล้ว GitHub Actions จะ deploy ให้อัตโนมัติ ([.github/workflows/pages.yml](.github/workflows/pages.yml))
 
-## สถานะการพัฒนา
-✅ Phase 0 — โครงระบบ, schema, state machine, RBAC, แดชบอร์ดภาพรวม
-⬜ Phase 1 — ก่อนฝึก: เก็บกิจกรรม + รวมเอกสาร + verify 2 ชั้น
-⬜ Phase 2 — จัดสรร + ระหว่างฝึก: แผนการสอน + บันทึกนิเทศ
-⬜ Phase 3 — ประเมินผล + form builder
-⬜ Phase 4 — ส่งคุรุสภา + export + แจ้งเตือน
-⬜ Phase 5 — เปิดภาควิชาอื่น
-```
+รายละเอียดการตั้งค่า Google Cloud / ชีต: [web/README.md](web/README.md)
+
+## ⚠️ ข้อจำกัดที่ทราบ
+- ชีตแชร์ให้แก้ไขได้ทั้งโดเมน สิทธิ์ตามบทบาทจึงบังคับที่หน้าเว็บ ไม่ได้บังคับที่ตัวชีต
+- การเข้าสู่ระบบมีอายุประมาณ 1 ชั่วโมง จากนั้นต้องเข้าสู่ระบบใหม่
+- ชื่อรอบฝึก (`DEFAULT_TERM`) และรายการกิจกรรม (`ACTIVITIES`) กำหนดไว้ใน `web/index.html`
+
+## 📁 โฟลเดอร์อื่น
+| โฟลเดอร์ | สถานะ |
+|---|---|
+| `web/` | **ตัวที่ใช้งานจริง** |
+| `appscript/` | เวอร์ชัน Google Apps Script รุ่นก่อน (เลิกใช้แล้ว) — `Setup.gs` ยังใช้สร้างแท็บชีตเริ่มต้นได้ |
+| `src/`, `prisma/` | ต้นแบบ Next.js + PostgreSQL เก็บไว้เผื่อขยายระบบใหญ่ |
+| `docs/` | เอกสารสถาปัตยกรรมช่วงออกแบบ |
